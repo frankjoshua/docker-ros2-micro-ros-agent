@@ -13,7 +13,10 @@
         "--net", "host", 
         // Forward X11 for GUI
         "-e", "DISPLAY=${env:DISPLAY}",
-        "-v", "/tmp/.X11-unix:/tmp/.X11-unix"
+        "-v", "/tmp/.X11-unix:/tmp/.X11-unix",
+        // Allow connections to serial devices
+        "--privileged",
+        "-v", "/dev:/dev"
     ],
     // These are the extensions I like to use with ROS2
     "extensions": [
