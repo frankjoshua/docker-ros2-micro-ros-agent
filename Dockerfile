@@ -15,6 +15,7 @@ ARG WORKSPACE=/home/ros
 
 SHELL [ "/bin/bash", "-i", "-c" ]
 WORKDIR ${WORKSPACE}
+USER root
 RUN git clone -b galactic https://github.com/micro-ROS/micro_ros_setup.git src/micro_ros_setup \
         && sudo apt update && rosdep update \
         && rosdep install --from-path src --ignore-src -y \
