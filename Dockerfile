@@ -11,21 +11,39 @@ FROM frankjoshua/ros2
 #    && apt-get clean -y \
 #    && rm -rf /var/lib/apt/lists/*
 # ENV DEBIAN_FRONTEND=dialog
-ARG WORKSPACE=/home/ros
-USER ros
-SHELL [ "/bin/bash", "-i", "-c" ]
-WORKDIR ${WORKSPACE}
-RUN git clone -b $ROS_DISTRO https://github.com/micro-ROS/micro_ros_setup.git src/micro_ros_setup \
-        && sudo apt update && rosdep update \
-        && rosdep install --from-path src --ignore-src -y \
-        && colcon build \
-        && source install/local_setup.bash \
-        && ros2 run micro_ros_setup create_agent_ws.sh \
-        && ros2 run micro_ros_setup build_agent.sh
-ENV DEBIAN_FRONTEND=dialog
-# Set up auto-source of workspace for ros user
-RUN echo "if [ -f ${WORKSPACE}/install/setup.bash ]; then source ${WORKSPACE}/install/setup.bash; fi" >> /home/ros/.bashrc
 
+# Set the working directory to /root
+WORKDIR /root
 
-ENTRYPOINT [ "/bin/bash", "-i", "-c" ]
-CMD ["ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyACM0"]
+# Copy your existing ROS2 workspace into the container
+COPY ros2_ws ./ros2_ws/
+
+RUN cd ros2_ws \
+    && mkdir src \
+    && vcs import src < ros2.repos
+
+# Install all dependencies for the workspace
+RUN cd ros2_ws \
+   && apt-get update \
+    && rosdep install --from-paths src --ignore-src -r -y \
+      && rm -rf /var/lib/apt/lists/*
+
+# Build the workspace using colcon
+RUN cd ros2_ws \
+    && . /opt/ros/$ROS_DISTRO/setup.sh \
+    && colcon build --symlink-install
+
+# Build the micro-ROS agent
+RUN cd ros2_ws \
+    && . /opt/ros/$ROS_DISTRO/setup.sh \
+    && . install/local_setup.sh \
+    && ros2 run micro_ros_setup create_agent_ws.sh \
+    && ros2 run micro_ros_setup build_agent.sh
+    
+# Copy the entrypoint script into the container
+COPY ros_entrypoint.sh /ros_entrypoint.sh
+
+# Ensure the entrypoint script is executable
+RUN chmod +x /ros_entrypoint.sh
+
+CMD [ "/bin/bash", "-i", "-c", "ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyACM0"]
